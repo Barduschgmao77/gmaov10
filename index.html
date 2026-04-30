@@ -2374,6 +2374,7 @@ function saveCIForm() {
 
 function deleteCIRow(idxOrId) {
   if(idxOrId === undefined || idxOrId === null) return;
+  if(curRole !== 'admin' && curRole !== 'resp') { alert('Action réservée aux responsables.'); return; }
   if(!confirm('Supprimer cette intervention ?')) return;
   var idx = parseInt(idxOrId);
   if(isNaN(idx) || idx < 0 || idx >= INTERVENTIONS.length) return;
@@ -2395,8 +2396,7 @@ var _dpm=deletePieceM;
 deletePieceM=function(id){ if(curRole==='admin'||curRole==='resp'){_dpm(id);} else{alert('Action réservée aux responsables.');} };
 var _dd=deleteDoc;
 deleteDoc=function(m,id){ if(curRole==='admin'||curRole==='resp'){_dd(m,id);} else{alert('Action réservée aux responsables.');} };
-var _dci=deleteCIRow;
-deleteCIRow=function(id){ if(curRole==='admin'||curRole==='resp'){_dci(id);} else{alert('Action réservée aux responsables.');} };
+
 
 
 // ── AUTH ─────────────────────────────────────────────────────────
@@ -2479,8 +2479,7 @@ var _dpm=window.deletePieceM;
 window.deletePieceM=function(id){ if(curRole==='admin'||curRole==='resp'){_dpm(id);} else{alert('Action réservée aux responsables.');} };
 var _dd=window.deleteDoc;
 window.deleteDoc=function(m,id){ if(curRole==='admin'||curRole==='resp'){_dd(m,id);} else{alert('Action réservée aux responsables.');} };
-var _dci=window.deleteCIRow;
-window.deleteCIRow=function(id){ if(curRole==='admin'||curRole==='resp'){_dci(id);} else{alert('Action réservée aux responsables.');} };
+
 
 
 function openLink(url) {
@@ -3266,7 +3265,7 @@ async function loadAllFromSupabase() {
     updateStockBadge();
     if(typeof renderCal === 'function') renderCal();
     // Si on est sur l'onglet interventions, rafraîchir
-    if(currentTab === 'correctif') { initCorr(); window._corrInited = true; }
+    if(window._corrInited) { filterCorr(); }
 
   } catch(e) {
     console.error('Erreur chargement:', e);
