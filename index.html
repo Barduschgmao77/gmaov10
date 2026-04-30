@@ -1438,7 +1438,7 @@ let checked = {};
 let technicianData = {};
 let statusData = {};
 let dateData = {};
-let history = [];
+let taskHistory = [];
 let activeFilter = 'all';
 let activeMachine = 'all';
 let activeTab = 'dashboard';
@@ -1517,7 +1517,7 @@ function renderDashboard() {
     </div>`).join('') : '<div class="empty" style="padding:24px">Toutes les tâches prioritaires sont faites ✓</div>';
 
   // Recent history
-  const recent = history.slice(0,4);
+  const recent = taskHistory.slice(0,4);
   document.getElementById('recent-history').innerHTML = recent.length ? recent.map(h=>`
     <div class="history-item">
       <div class="history-dot" style="background:${FREQ_COLORS[h.freq]||'#58A6FF'}"></div>
@@ -1588,7 +1588,7 @@ function toggleTask(id) {
     checked[id] = new Date().toLocaleDateString('fr-FR');
     const t = TASKS.find(x=>x.id===id);
     const h = {id, title:t.desc, freq:t.freq, zone:t.zone, tech:technicianData[id]||'—', date:checked[id]};
-    history.unshift(h);
+    taskHistory.unshift(h);
     sbSaveHistorique(h);
   }
   sbSaveTache(id);
@@ -1616,11 +1616,11 @@ function renderCalendar() {
 }
 
 function renderHistoryTab() {
-  if(!history.length) {
+  if(!taskHistory.length) {
     document.getElementById('history-list').innerHTML = '<div class="empty">Aucune intervention enregistrée. Cochez des tâches pour les voir ici.</div>';
     return;
   }
-  document.getElementById('history-list').innerHTML = history.map(h=>`
+  document.getElementById('history-list').innerHTML = taskHistory.map(h=>`
     <div class="history-item">
       <div class="history-dot" style="background:${FREQ_COLORS[h.freq]||'#58A6FF'}"></div>
       <div class="history-info">
@@ -1647,7 +1647,7 @@ function saveIntervention() {
   checked[taskId] = new Date(date).toLocaleDateString('fr-FR');
   technicianData[taskId] = tech;
   dateData[taskId] = date;
-  history.unshift({id:taskId, title:t.desc, freq:t.freq, zone:t.zone, tech, date:checked[taskId], obs});
+  taskHistory.unshift({id:taskId, title:t.desc, freq:t.freq, zone:t.zone, tech, date:checked[taskId], obs});
   closeModal();
   renderDashboard();
   if(activeTab==='tasks') renderTasks();
@@ -1789,7 +1789,7 @@ function toggleTaskMachine(id) {
   else {
     checked[id] = new Date().toLocaleDateString('fr-FR');
     const t = TASKS.find(x=>x.id===id);
-    history.unshift({id, title:t.desc, freq:t.freq, zone:t.zone, tech:technicianData[id]||'—', date:checked[id]});
+    taskHistory.unshift({id, title:t.desc, freq:t.freq, zone:t.zone, tech:technicianData[id]||'—', date:checked[id]});
   }
   renderMachineTasks();
   renderMachineHeader();
@@ -2268,7 +2268,7 @@ function renderCorr() {
   const arretClass = m => m===0?'arret-0':m<=30?'arret-low':'arret-high';
 
   const body = document.getElementById('corr-body');
-  if(body) body.innerHTML = page.map(i=>`
+  if(body) body.innerHTML = page.map((i,pageIdx)=>{ const realIdx = INTERVENTIONS.indexOf(i); return `
     <tr>
       <td style="white-space:nowrap">${i.date}</td>
       <td style="white-space:nowrap">
@@ -2283,8 +2283,8 @@ function renderCorr() {
       <td style="color:var(--muted)">${i.intervention_min} min</td>
       <td style="max-width:160px">${i.cause||'—'}</td>
       <td style="max-width:180px;color:var(--muted)">${i._source==='manual'?'':i.remede||'—'}</td>
-      <td><button class="btn-sm danger" onclick="deleteCIRow(${i.id||0})" class="btn-sm danger resp-only delete-btn">✕</button></td>
-    </tr>`).join('');
+      <td><button class="btn-sm danger" data-idx="${realIdx}" onclick="deleteCIRow(this.dataset.idx)" class="btn-sm danger resp-only delete-btn">✕</button></td>
+    </tr>`;}).join('');
 
   const totalPages = Math.ceil(total/CORR_PER_PAGE);
   let pages = '';
@@ -2372,15 +2372,16 @@ function saveCIForm() {
   alert('✓ Intervention enregistrée avec succès !');
 }
 
-function deleteCIRow(id) {
-  if(!id || !confirm('Supprimer cette intervention ?')) return;
-  const idx = INTERVENTIONS.findIndex(i=>i.id===id);
-  if(idx>-1) {
-    sbDeleteIntervention(INTERVENTIONS[idx].sb_id || id);
-    INTERVENTIONS.splice(idx,1);
-    filterCorr();
-  }
-  const badge = document.getElementById('badge-correctif');
+function deleteCIRow(idxOrId) {
+  if(idxOrId === undefined || idxOrId === null) return;
+  if(!confirm('Supprimer cette intervention ?')) return;
+  var idx = parseInt(idxOrId);
+  if(isNaN(idx) || idx < 0 || idx >= INTERVENTIONS.length) return;
+  var interv = INTERVENTIONS[idx];
+  if(interv && interv.sb_id) sbDeleteIntervention(interv.sb_id);
+  INTERVENTIONS.splice(idx, 1);
+  filterCorr();
+  var badge = document.getElementById('badge-correctif');
   if(badge) badge.textContent = INTERVENTIONS.length;
 }
 
@@ -3244,7 +3245,7 @@ async function loadAllFromSupabase() {
     // 6. Historique tâches
     var hist = await sbFetch('historique_taches', 'GET', null, 'select=*&order=created_at.desc&limit=200');
     if(hist && hist.length) {
-      history = hist.map(function(r) {
+      taskHistory = hist.map(function(r) {
         return { id:r.task_id, title:r.title, freq:r.freq, zone:r.zone, tech:r.technicien, date:r.date_realisation };
       });
     }
